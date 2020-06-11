@@ -60,6 +60,8 @@ build_rootfs() {
     msg "Enabling services..."
     ${NSPAWN} systemctl enable getty.target haveged.service systemd-networkd.service systemd-resolved.service
     ${NSPAWN} systemctl enable sshd.service zswap-arm.service bootsplash-hide-when-booted.service bootsplash-show-on-shutdown.service
+    # fix manjaro-arm-oem-install always disable systemd-resolved.service
+    echo "systemctl enable systemd-resolved.service" >> ${ROOTFS_DIR}/root/.bash_profile
 
     msg "Applying overlay for minimal edition..."
     echo "Overlay file, just so each edition has one." > ${ROOTFS_DIR}/overlay.txt
