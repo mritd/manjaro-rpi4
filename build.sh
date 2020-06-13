@@ -55,7 +55,11 @@ build_rootfs() {
     ${NSPAWN} pacman -U /var/cache/pacman/pkg/${CUSTOM_KERNEL_HEADERS} --noconfirm
 
     msg "Configure system network..."
-    cp -ap ${RESOURCES_DIR}/${NETWORK_CONFIG} ${ROOTFS_DIR}/etc/systemd/network/
+    ${NSPAWN} pacman -Syyu --asdeps systemd-resolvconf --noconfirm
+    ${NSPAWN} pacman -Syyu netctl --noconfirm
+    cp -ap ${ROOTFS_DIR}/etc/netctl/examples/ethernet-dhcp ${ROOTFS_DIR}/etc/netctl/
+    cp -ap ${ROOTFS_DIR}/etc/netctl/examples/wireless-wpa ${ROOTFS_DIR}/etc/netctl/
+    ${NSPAWN} netctl enable ethernet-dhcp
 
     msg "Enabling services..."
     ${NSPAWN} systemctl enable getty.target haveged.service systemd-networkd.service systemd-resolved.service
