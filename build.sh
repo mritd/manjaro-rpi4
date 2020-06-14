@@ -3,20 +3,25 @@
 set -e
 
 VERSION=$(date +'%y'.'%m')
-STORAGE_DIR='manjaro'
-PKG_CACHE_DIR="${STORAGE_DIR}/pkg-cache"
-RESOURCES_DIR="./resources"
-IMG_TEMP_DIR="${STORAGE_DIR}/tmp"
-ROOTFS_DIR="${STORAGE_DIR}/rootfs"
-ROOTFS_TARBALL='Manjaro-ARM-aarch64-latest.tar.gz'
-ROOTFS_DOWNLOAD_URL="https://osdn.net/projects/manjaro-arm/storage/.rootfs/${ROOTFS_TARBALL}"
-CUSTOM_KERNEL='linux-rpi4-4.19.122-1-aarch64.pkg.tar.xz'
-CUSTOM_KERNEL_HEADERS='linux-rpi4-headers-4.19.122-1-aarch64.pkg.tar.xz'
-NETWORK_CONFIG='10-dhcp-eth.network'
-NSPAWN="systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D ${ROOTFS_DIR}"
 IMG_NAME="Manjaro-ARM-minimal-rpi4-${VERSION}"
 
+STORAGE_DIR='./manjaro'
+ROOTFS_DIR="${STORAGE_DIR}/rootfs"
+IMG_TEMP_DIR="${STORAGE_DIR}/tmp"
+PKG_CACHE_DIR="${STORAGE_DIR}/pkg-cache"
 
+RESOURCES_DIR="./resources"
+CUSTOM_PKG_DIR="${RESOURCES_DIR}/pkg"
+SERVICE_DIR="${RESOURCES_DIR}/service"
+NETWORK_CONFIG_DIR="${RESOURCES_DIR}/network"
+
+ROOTFS_TARBALL='Manjaro-ARM-aarch64-latest.tar.gz'
+ROOTFS_DOWNLOAD_URL="https://osdn.net/projects/manjaro-arm/storage/.rootfs/${ROOTFS_TARBALL}"
+
+KERNEL='linux-rpi4-4.19.122-1-aarch64.pkg.tar.xz'
+KERNEL_HEADERS='linux-rpi4-headers-4.19.122-1-aarch64.pkg.tar.xz'
+
+NSPAWN="systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D ${ROOTFS_DIR}"
 
 build_rootfs() {
     msg "Downloading latest aarch64 rootfs..."
@@ -50,34 +55,31 @@ build_rootfs() {
                             sysstat nload lsof --noconfirm
 
     msg "Installing custom build kernel..."
-    cp -ap ${RESOURCES_DIR}/${CUSTOM_KERNEL} ${RESOURCES_DIR}/${CUSTOM_KERNEL_HEADERS} ${ROOTFS_DIR}/var/cache/pacman/pkg/
-    ${NSPAWN} pacman -U /var/cache/pacman/pkg/${CUSTOM_KERNEL} --noconfirm
-    ${NSPAWN} pacman -U /var/cache/pacman/pkg/${CUSTOM_KERNEL_HEADERS} --noconfirm
+    cp -ap ${CUSTOM_PKG_DIR}/* ${ROOTFS_DIR}/var/cache/pacman/pkg/
+    ${NSPAWN} pacman -U /var/cache/pacman/pkg/${KERNEL} --noconfirm
+    ${NSPAWN} pacman -U /var/cache/pacman/pkg/${KERNEL_HEADERS} --noconfirm
 
     msg "Configure system network..."
-    ${NSPAWN} pacman -Syyu --asdeps systemd-resolvconf --noconfirm
-    ${NSPAWN} pacman -Syyu netctl --noconfirm
-    cp -ap ${ROOTFS_DIR}/etc/netctl/examples/ethernet-dhcp ${ROOTFS_DIR}/etc/netctl/
-    cp -ap ${ROOTFS_DIR}/etc/netctl/examples/wireless-wpa ${ROOTFS_DIR}/etc/netctl/
-    ${NSPAWN} netctl enable ethernet-dhcp
-
-    msg "Enabling services..."
-    ${NSPAWN} systemctl enable getty.target haveged.service systemd-networkd.service systemd-resolved.service
-    ${NSPAWN} systemctl enable sshd.service zswap-arm.service bootsplash-hide-when-booted.service bootsplash-show-on-shutdown.service
+    cp -ap ${NETWORK_CONFIG_DIR}/* ${ROOTFS_DIR}/etc/systemd/network/
     # fix manjaro-arm-oem-install always disable systemd-resolved.service
     sed -i 's@systemctl disable systemd-resolved.service 1> /dev/null 2>&1@@g' ${ROOTFS_DIR}/usr/share/manjaro-arm-oem-install/manjaro-arm-oem-install
+    ${NSPAWN} systemctl enable systemd-networkd.service systemd-resolved.service
+
+    msg "Enabling services..."
+    ${NSPAWN} systemctl enable getty.target haveged.service
+    ${NSPAWN} systemctl enable sshd.service zswap-arm.service bootsplash-hide-when-booted.service bootsplash-show-on-shutdown.service
 
     msg "Applying overlay for minimal edition..."
     echo "Overlay file, just so each edition has one." > ${ROOTFS_DIR}/overlay.txt
 
     msg "Setting up system settings..."
-    echo "manjaro-arm" | tee --append ${ROOTFS_DIR}/etc/hostname 1> /dev/null 2>&1
+    echo "manjaro-arm" > ${ROOTFS_DIR}/etc/hostname
     # Enabling SSH login for root user for headless setup...
     sed -i s/"#PermitRootLogin prohibit-password"/"PermitRootLogin yes"/g ${ROOTFS_DIR}/etc/ssh/sshd_config
     sed -i s/"#PermitEmptyPasswords no"/"PermitEmptyPasswords yes"/g ${ROOTFS_DIR}/etc/ssh/sshd_config
     # Enabling autologin for first setup...
     mv ${ROOTFS_DIR}/usr/lib/systemd/system/getty\@.service ${ROOTFS_DIR}/usr/lib/systemd/system/getty\@.service.bak
-    cp ${RESOURCES_DIR}/getty\@.service ${ROOTFS_DIR}/usr/lib/systemd/system/getty\@.service
+    cp ${SERVICE_DIR}/getty\@.service ${ROOTFS_DIR}/usr/lib/systemd/system/getty\@.service
 
     msg "Correcting permissions from overlay..."
     chown -R root:root ${ROOTFS_DIR}/etc
@@ -90,9 +92,9 @@ build_rootfs() {
     rm -rf ${ROOTFS_DIR}/usr/lib/systemd/system/systemd-firstboot.service
     rm -rf ${ROOTFS_DIR}/etc/machine-id
 
-    echo "rpi4 - minimal - ${VERSION}" | tee --append ${ROOTFS_DIR}/etc/manjaro-arm-version 1> /dev/null 2>&1
+    echo "rpi4 - minimal - ${VERSION}" > ${ROOTFS_DIR}/etc/manjaro-arm-version 1> /dev/null 2>&1
 
-    msg "rpi4 minimal rootfs complete."
+    msg "Build rpi4 minimal rootfs complete."
 }
 
 create_img() {
