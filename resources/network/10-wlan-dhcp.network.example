@@ -2,7 +2,7 @@
 # $ wpa_passphrase MyNetwork SuperSecretPassphrase > /etc/wpa_supplicant/wpa_supplicant-wlan0.conf
 #
 # 2. Connect to wifi automatically after booting
-# $ systemctl enable wpa_supplicant@wlan0.conf
+# $ systemctl enable wpa_supplicant@wlan0
 #
 # 3.Systemd automatically makes dhcp request
 # $ cp /etc/systemd/network/10-wlan-dhcp.network.example /etc/systemd/network/10-wlan-dhcp.network
