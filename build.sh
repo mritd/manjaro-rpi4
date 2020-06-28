@@ -23,6 +23,11 @@ KERNEL_HEADERS='linux-rpi4-headers-4.19.122-1-aarch64.pkg.tar.xz'
 
 NSPAWN="systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D ${ROOTFS_DIR}"
 
+install_deps() {
+    msg "Install Build Dependencies..."
+    pacman -Syyu parted xz git manjaro-arm-qemu-static dosfstools polkit --noconfirm
+}
+
 build_rootfs() {
     msg "Downloading latest aarch64 rootfs..."
     if [[ ! -f ${ROOTFS_TARBALL} ]]; then
@@ -164,5 +169,6 @@ info() {
     printf "${BLUE}  ->${ALL_OFF}${BOLD} ${message}${ALL_OFF}\n" "$@" >&2
 }
 
+install_deps
 build_rootfs
 create_img
