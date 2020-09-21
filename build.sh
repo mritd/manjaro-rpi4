@@ -5,6 +5,8 @@ set -e
 VERSION=$(date +'%y'.'%m')
 IMG_NAME="Manjaro-ARM-minimal-rpi4-${VERSION}"
 
+INSTALL_COUSTOM_PKG="false"
+
 STORAGE_DIR='./manjaro'
 ROOTFS_DIR="${STORAGE_DIR}/rootfs"
 IMG_TEMP_DIR="${STORAGE_DIR}/tmp"
@@ -59,10 +61,12 @@ build_rootfs() {
     ${NSPAWN} pacman -Syyu zsh htop vim wget which git make net-tools dnsutils inetutils iproute2 \
                             sysstat nload lsof --noconfirm
 
-    msg "Installing custom build kernel..."
-    cp -ap ${CUSTOM_PKG_DIR}/* ${ROOTFS_DIR}/var/cache/pacman/pkg/
-    ${NSPAWN} pacman -U /var/cache/pacman/pkg/${KERNEL} --noconfirm
-    ${NSPAWN} pacman -U /var/cache/pacman/pkg/${KERNEL_HEADERS} --noconfirm
+    if [ "${INSTALL_COUSTOM_PKG}" == "true" ]; then
+        msg "Installing custom build kernel..."
+        cp -ap ${CUSTOM_PKG_DIR}/* ${ROOTFS_DIR}/var/cache/pacman/pkg/
+        ${NSPAWN} pacman -U /var/cache/pacman/pkg/${KERNEL} --noconfirm
+        ${NSPAWN} pacman -U /var/cache/pacman/pkg/${KERNEL_HEADERS} --noconfirm
+    fi
 
     msg "Configure system network..."
     cp -ap ${NETWORK_CONFIG_DIR}/* ${ROOTFS_DIR}/etc/systemd/network/
